@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-import gradio as gr
+import io
 
 import faster_whisper
 import torch
@@ -32,6 +32,8 @@ from helpers import (
     whisper_langs,
     write_srt,
 )
+
+import gradio as gr
 
 mtypes = {"cpu": "int8", "cuda": "float16"}
 
@@ -190,10 +192,9 @@ def diarize(audio, no_stem, suppress_numerals, model_name, batch_size, language,
     wsm = get_realigned_ws_mapping_with_punctuation(wsm)
     ssm = get_sentences_speaker_mapping(wsm, speaker_ts)
 
-    txt_output = f"{os.path.splitext(audio)[0]}.txt"
-
-    with open(txt_output, "w", encoding="utf-8-sig") as f:
+    with io.StringIO() as f:
         get_speaker_aware_transcript(ssm, f)
+        txt_output = f.getvalue()
 
     cleanup(temp_path)
     return txt_output
@@ -203,14 +204,14 @@ def main():
         gr.Markdown("# Audio Diarization")
         audio = gr.Audio(label="Upload Audio", type="filepath")
         with gr.Accordion("Advanced", open=False):
-            no_stem = gr.Checkbox(label="Disable Source Separation", value=True)
+            no_stem = gr.Checkbox(label="Disable Source Separation", value=False)
             suppress_numerals = gr.Checkbox(label="Suppress Numerical Digits", value=True)
             whisper_model = gr.Dropdown(label="Whisper Model", choices=faster_whisper.available_models(), value="medium.en")
             batch_size = gr.Slider(label="Batch Size", minimum=1, maximum=16, step=1, value=8)
             language = gr.Dropdown(label="Language", choices=whisper_langs, value="en")
             device = gr.Dropdown(label="Device", choices=["cpu", "cuda"], value="cuda" if torch.cuda.is_available() else "cpu")
         diarize_button = gr.Button("Diarize")
-        txt_output = gr.File(label="Transcript Output")
+        txt_output = gr.Textbox(label="Transcript", show_copy_button=True)
 
         diarize_button.click(diarize, inputs=[audio, no_stem, suppress_numerals, whisper_model, batch_size, language, device], outputs=[txt_output])
 
