@@ -192,12 +192,16 @@ def diarize(audio, no_stem, suppress_numerals, model_name, batch_size, language,
     wsm = get_realigned_ws_mapping_with_punctuation(wsm)
     ssm = get_sentences_speaker_mapping(wsm, speaker_ts)
 
-    with io.StringIO() as f:
+    file_output = f"{os.path.splitext(audio)[0]}.txt"
+
+    with open(file_output, "w", encoding="utf-8-sig") as f:
         get_speaker_aware_transcript(ssm, f)
-        txt_output = f.getvalue()
+    
+    with open(file_output, "r", encoding="utf-8-sig") as f:
+        string_output = f.read()
 
     cleanup(temp_path)
-    return txt_output
+    return file_output, string_output
 
 def main():
     with gr.Blocks() as demo:
@@ -211,9 +215,10 @@ def main():
             language = gr.Dropdown(label="Language", choices=whisper_langs, value="en")
             device = gr.Dropdown(label="Device", choices=["cpu", "cuda"], value="cuda" if torch.cuda.is_available() else "cpu")
         diarize_button = gr.Button("Diarize")
-        txt_output = gr.Textbox(label="Transcript", show_copy_button=True)
+        file_output = gr.File(label="Transcript File")
+        string_output = gr.Textbox(label="Transcript", show_copy_button=True)
 
-        diarize_button.click(diarize, inputs=[audio, no_stem, suppress_numerals, whisper_model, batch_size, language, device], outputs=[txt_output])
+        diarize_button.click(diarize, inputs=[audio, no_stem, suppress_numerals, whisper_model, batch_size, language, device], outputs=[file_output, string_output])
 
     demo.launch()
 
